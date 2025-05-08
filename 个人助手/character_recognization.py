@@ -14,18 +14,18 @@ from datetime import datetime
 import threading
 import time
 
-class CNNFeatureExtractor(Layer):
-    """CNN特征提取器层"""
+class CharacterFeatureExtractor(Layer):
+    """特征提取器层"""
     def __init__(self, **kwargs):
-        super(CNNFeatureExtractor, self).__init__(**kwargs)
-        self.conv1 = Conv2D(32, (3, 3), activation='relu')
-        self.pool1 = MaxPooling2D((2, 2))
-        self.conv2 = Conv2D(64, (3, 3), activation='relu')
-        self.pool2 = MaxPooling2D((2, 2))
-        self.conv3 = Conv2D(128, (3, 3), activation='relu')
-        self.pool3 = MaxPooling2D((2, 2))
-        self.flatten = Flatten()
-        self.dense = Dense(128, activation='relu')
+        super(CharacterFeatureExtractor, self).__init__(**kwargs)
+        self.conv1 = Conv2D(32, (3, 3), activation='relu', name='conv1')
+        self.pool1 = MaxPooling2D((2, 2), name='pool1')
+        self.conv2 = Conv2D(64, (3, 3), activation='relu', name='conv2')
+        self.pool2 = MaxPooling2D((2, 2), name='pool2')
+        self.conv3 = Conv2D(128, (3, 3), activation='relu', name='conv3')
+        self.pool3 = MaxPooling2D((2, 2), name='pool3')
+        self.flatten = Flatten(name='flatten')
+        self.dense = Dense(256, activation='relu', name='dense')
 
     def call(self, inputs):
         x = self.conv1(inputs)
@@ -39,17 +39,19 @@ class CNNFeatureExtractor(Layer):
         return x
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], 128)
+        return (input_shape[0], 256)
 
-class EmotionEvaluator:
-    def __init__(self, model_path='emotion_model.keras'):
-        """初始化情绪评估器"""
+class CharacterAnalyzer:
+    def __init__(self, model_path='character_model.keras'):
+        """初始化性格分析器"""
         self.model = self._load_or_create_model(model_path)
-        self.emotions = ['愤怒', '厌恶', '恐惧', '快乐', '悲伤', '惊讶', '平静']
-        self.is_evaluating = False
-        self.evaluation_thread = None
-        self.last_evaluation_time = 0
-        self.evaluation_interval = 5  # 每5秒评估一次
+        self.traits = [
+            'neuroticism', 'extraversion', 'agreeableness', 'conscientiousness', 'openness'
+        ]
+        self.is_analyzing = False
+        self.analysis_thread = None
+        self.last_analysis_time = 0
+        self.analysis_interval = 5  # 每5秒分析一次
         
     def _load_or_create_model(self, model_path):
         """加载或创建模型"""
@@ -57,44 +59,44 @@ class EmotionEvaluator:
             try:
                 print("正在加载模型...")
                 model = load_model(model_path, safe_mode=False,
-                                 custom_objects={'CNNFeatureExtractor': CNNFeatureExtractor})
+                                 custom_objects={'CharacterFeatureExtractor': CharacterFeatureExtractor})
                 print("模型加载成功")
                 return model
             except Exception as e:
                 print(f"模型加载失败: {str(e)}")
         
         print("创建新模型...")
-        model = create_emotion_model()
+        model = create_character_model()
         model.save(model_path)
         return model
     
-    def start_evaluation(self):
-        """开始自动评估"""
-        if not self.is_evaluating:
-            self.is_evaluating = True
-            self.evaluation_thread = threading.Thread(target=self._evaluation_loop)
-            self.evaluation_thread.daemon = True
-            self.evaluation_thread.start()
-            print("开始自动情绪评估...")
+    def start_analysis(self):
+        """开始自动分析"""
+        if not self.is_analyzing:
+            self.is_analyzing = True
+            self.analysis_thread = threading.Thread(target=self._analysis_loop)
+            self.analysis_thread.daemon = True
+            self.analysis_thread.start()
+            print("开始自动性格分析...")
     
-    def stop_evaluation(self):
-        """停止自动评估"""
-        self.is_evaluating = False
-        if self.evaluation_thread and self.evaluation_thread.is_alive():
-            self.evaluation_thread.join(timeout=1)
-        print("停止自动情绪评估")
+    def stop_analysis(self):
+        """停止自动分析"""
+        self.is_analyzing = False
+        if self.analysis_thread and self.analysis_thread.is_alive():
+            self.analysis_thread.join(timeout=1)
+        print("停止自动性格分析")
     
-    def _evaluation_loop(self):
-        """评估循环"""
-        while self.is_evaluating:
+    def _analysis_loop(self):
+        """分析循环"""
+        while self.is_analyzing:
             current_time = time.time()
-            if current_time - self.last_evaluation_time >= self.evaluation_interval:
-                self._evaluate_latest_video()
-                self.last_evaluation_time = current_time
-            time.sleep(0.1)  # 短暂休眠以减少CPU使用
+            if current_time - self.last_analysis_time >= self.analysis_interval:
+                self._analyze_latest_video()
+                self.last_analysis_time = current_time
+            time.sleep(0.1)
     
-    def _evaluate_latest_video(self):
-        """评估最新的视频文件"""
+    def _analyze_latest_video(self):
+        """分析最新的视频文件"""
         try:
             # 查找最新的视频文件
             video_files = glob.glob('video_*.avi')
@@ -104,66 +106,66 @@ class EmotionEvaluator:
             # 按修改时间排序
             latest_video = max(video_files, key=os.path.getmtime)
             
-            # 分析情绪
-            emotion_scores = self.analyze_emotions(latest_video, self.model)
+            # 分析性格特征
+            trait_scores = self.analyze_character(latest_video, self.model)
             
             # 保存分析结果
-            save_analysis_results(latest_video, emotion_scores)
+            save_analysis_results(latest_video, trait_scores)
             
             # 打印结果
-            print(f"\n视频 {latest_video} 的情绪分析结果:")
+            print(f"\n视频 {latest_video} 的性格分析结果:")
             print("=" * 50)
-            for emotion, score in emotion_scores:
-                print(f"{emotion}: {score:.4f}")
+            for trait, score in trait_scores:
+                print(f"{trait}: {score:.4f}")
             print("=" * 50)
             
         except Exception as e:
-            print(f"评估视频时发生错误: {str(e)}")
+            print(f"分析视频时发生错误: {str(e)}")
     
-    def analyze_emotions(self, file_path: str, model) -> List[Tuple[str, float]]:
-        """分析视频中的情绪"""
+    def analyze_character(self, file_path: str, model) -> List[Tuple[str, float]]:
+        """分析视频中的性格特征"""
         try:
             # 预处理视频
             preprocessed_video = preprocess_video(file_path)
             preprocessed_video = np.expand_dims(preprocessed_video, axis=0)
             
-            # 预测情绪
+            # 预测性格特征
             predictions = model.predict(preprocessed_video)
             
-            # 获取每个情绪的置信度
-            emotion_scores = list(zip(self.emotions, predictions[0]))
+            # 获取每个特征的得分
+            trait_scores = list(zip(self.traits, predictions[0]))
             
-            # 按置信度排序
-            emotion_scores.sort(key=lambda x: x[1], reverse=True)
+            # 按得分排序
+            trait_scores.sort(key=lambda x: x[1], reverse=True)
             
-            return emotion_scores
+            return trait_scores
         except Exception as e:
-            raise ValueError(f"情绪分析失败: {str(e)}")
+            raise ValueError(f"性格分析失败: {str(e)}")
 
-def create_emotion_model():
-    """创建情绪分析模型"""
+def create_character_model():
+    """创建性格分析模型"""
     # 视频输入分支
     visual_input = Input(shape=(6, 128, 128, 3))
     
-    # 使用TimeDistributed包装CNN特征提取器
-    cnn_layer = CNNFeatureExtractor()
-    encoded_frames = TimeDistributed(cnn_layer)(visual_input)
+    # 使用TimeDistributed包装特征提取器
+    feature_extractor = CharacterFeatureExtractor()
+    encoded_frames = TimeDistributed(feature_extractor)(visual_input)
     
     # 使用LSTM处理时序特征
-    encoded_vid = LSTM(64, return_sequences=False)(encoded_frames)
+    encoded_vid = LSTM(128, return_sequences=False)(encoded_frames)
     
     # 添加全连接层
-    x = Dense(128, activation='relu')(encoded_vid)
+    x = Dense(256, activation='relu')(encoded_vid)
     x = Dropout(0.5)(x)
-    x = Dense(64, activation='relu')(x)
+    x = Dense(128, activation='relu')(x)
     x = Dropout(0.3)(x)
     
-    # 输出层 - 7种基本情绪
-    outputs = Dense(7, activation='softmax')(x)
+    # 输出层 - 5个性格特征
+    outputs = Dense(5, activation='sigmoid')(x)
     
     # 创建模型
     model = Model(inputs=visual_input, outputs=outputs)
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     
     return model
 
@@ -223,7 +225,7 @@ def preprocess_video(file_path: str) -> np.ndarray:
     except Exception as e:
         raise ValueError(f"视频预处理失败: {str(e)}")
 
-def save_analysis_results(file_path: str, emotion_scores: List[Tuple[str, float]]):
+def save_analysis_results(file_path: str, trait_scores: List[Tuple[str, float]]):
     """保存分析结果到文件"""
     try:
         # 创建results目录（如果不存在）
@@ -232,17 +234,17 @@ def save_analysis_results(file_path: str, emotion_scores: List[Tuple[str, float]
         # 使用视频文件名作为基础
         video_name = os.path.splitext(os.path.basename(file_path))[0]
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = os.path.join('results', f'emotion_analysis_{video_name}_{timestamp}.txt')
+        output_file = os.path.join('results', f'character_analysis_{video_name}_{timestamp}.txt')
         
         with open(output_file, 'w', encoding='utf-8') as f:
-            f.write("情绪分析结果\n")
+            f.write("性格分析结果\n")
             f.write("=" * 50 + "\n")
             f.write(f"视频文件: {file_path}\n")
             f.write(f"分析时间: {timestamp}\n")
             f.write("-" * 50 + "\n")
-            f.write("情绪得分:\n")
-            for emotion, score in emotion_scores:
-                f.write(f"{emotion}: {score:.4f}\n")
+            f.write("性格特征得分:\n")
+            for trait, score in trait_scores:
+                f.write(f"{trait}: {score:.4f}\n")
             f.write("=" * 50 + "\n")
         
         print(f"分析结果已保存到: {output_file}")
@@ -252,12 +254,12 @@ def save_analysis_results(file_path: str, emotion_scores: List[Tuple[str, float]
         return None
 
 if __name__ == "__main__":
-    # 创建情绪评估器实例
-    evaluator = EmotionEvaluator()
+    # 创建性格分析器实例
+    analyzer = CharacterAnalyzer()
     
     try:
-        # 启动自动评估
-        evaluator.start_evaluation()
+        # 启动自动分析
+        analyzer.start_analysis()
         
         # 保持程序运行
         while True:
@@ -266,5 +268,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n程序终止")
     finally:
-        # 停止评估
-        evaluator.stop_evaluation()
+        # 停止分析
+        analyzer.stop_analysis()

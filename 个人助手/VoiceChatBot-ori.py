@@ -15,11 +15,11 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
-from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
-from langchain_community.utilities import WikipediaAPIWrapper
-from langchain_community.tools import WikipediaQueryRun
-from langchain_community.utilities import ArxivAPIWrapper
-from langchain_community.utilities import GoogleSearchAPIWrapper
+from langchain.utilities import DuckDuckGoSearchAPIWrapper
+from langchain.utilities import WikipediaAPIWrapper
+from langchain.tools import WikipediaQueryRun
+from langchain.utilities import ArxivAPIWrapper
+from langchain.utilities import GoogleSearchAPIWrapper
 from langchain.agents import AgentExecutor
 from langchain.prompts import MessagesPlaceholder
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
@@ -35,7 +35,6 @@ from langchain.callbacks import StdOutCallbackHandler
 import cv2
 import numpy as np
 from collections import deque
-from character_recognization import CharacterAnalyzer
 
 class VoiceChatBot:
     def __init__(self):
@@ -131,13 +130,9 @@ class VoiceChatBot:
         # 添加视频录制相关属性
         self.video_thread = None
 
-        # 初始化情绪评估器
-        self.character_analyzer = CharacterAnalyzer()
-        self.is_emotion_analyzing = False
-        
-        # 创建输出目录
-        self.output_dir = "output"
-        os.makedirs(self.output_dir, exist_ok=True)
+        # 添加语音聊天相关属性
+        self.is_voice_chatting = False
+        self.voice_thread = None
 
     def _initialize_search_tools(self):
         """初始化搜索工具"""
@@ -628,9 +623,6 @@ class VoiceChatBot:
                     self.video_recording_thread.daemon = True
                     self.video_recording_thread.start()
 
-                    # Start emotion analysis
-                    self.start_emotion_analysis()
-
                     return True
                 except Exception as e:
                     print(f"Camera initialization error: {str(e)}")
@@ -644,10 +636,6 @@ class VoiceChatBot:
                 self.camera.release()
                 self.camera = None
                 self.is_camera_active = False
-                
-                # Stop emotion analysis
-                self.stop_emotion_analysis()
-                
                 return False
 
     def _record_video(self):
@@ -714,60 +702,3 @@ class VoiceChatBot:
         """清理资源"""
         if self.camera:
             self.camera.release()
-
-    def start_video_recording(self):
-        """开始视频录制"""
-        if not self.is_recording:
-            self.toggle_camera()
-            print("开始视频录制...")
-
-    def stop_video_recording(self):
-        """停止视频录制"""
-        self.toggle_camera()
-        print("停止视频录制")
-
-    def start_emotion_analysis(self):
-        """开始情绪分析"""
-        if not self.is_emotion_analyzing:
-            self.is_emotion_analyzing = True
-            self.character_analyzer.start_analysis()
-            print("开始情绪分析...")
-
-    def stop_emotion_analysis(self):
-        """停止情绪分析"""
-        if self.is_emotion_analyzing:
-            self.is_emotion_analyzing = False
-            self.character_analyzer.stop_analysis()
-            print("停止情绪分析")
-
-    def cleanup(self):
-        """清理所有资源"""
-        self.stop_listening()
-        self.stop_speaking()
-        self.stop_video_recording()
-        self.stop_emotion_analysis()
-
-if __name__ == "__main__":
-    # 创建语音聊天机器人实例
-    bot = VoiceChatBot()
-    
-    try:
-        # 启动语音识别
-        bot.start_listening()
-        
-        # 启动视频录制
-        bot.start_video_recording()
-        
-        # 启动情绪分析
-        bot.start_emotion_analysis()
-        
-        # 保持程序运行
-        while True:
-            time.sleep(1)
-            
-    except KeyboardInterrupt:
-        print("\n程序终止")
-    finally:
-        # 清理资源
-        bot.cleanup()
-
