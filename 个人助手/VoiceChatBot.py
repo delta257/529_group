@@ -771,7 +771,3 @@ if __name__ == "__main__":
         # 清理资源
         bot.cleanup()
 
-# After video recording is complete
-video_path = "video_20250508_152606.AVI"  # Your recorded video path
-emotion_evaluator = EmotionEvaluator()  # Create an instance
-results = emotion_evaluator.analyze_emotions(video_path, emotion_evaluator.model)  # Use the instance method
